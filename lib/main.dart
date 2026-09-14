@@ -58,7 +58,7 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
     _fetchReservedCars();
   }
 
-  // 1. 차량 / 이름 통합 검색
+  // 1. 차량 / 이름 / 전화번호 통합 검색
   Future<void> _searchCars(String query) async {
     final keyword = query.trim();
     if (keyword.isEmpty) return;
@@ -180,7 +180,31 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Color(0xFF00E676),
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchTab() {
+    final carnoMatches = _searchResults
+        .where((e) => e['match_type'] == 'carno')
+        .toList();
+    final phoneMatches = _searchResults
+        .where((e) => e['match_type'] == 'phone')
+        .toList();
+    final otherMatches = _searchResults
+        .where((e) => e['match_type'] != 'carno' && e['match_type'] != 'phone')
+        .toList();
+
     return Column(
       children: [
         Container(
@@ -192,7 +216,7 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: '차량 4자리(예: 0572) 또는 이름(예: 강효영)',
+                    hintText: '차량 4자리, 전화번호 뒷자리, 입주민 성함',
                     hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
                     prefixIcon: const Icon(
                       Icons.search,
@@ -242,16 +266,35 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
               : _searchResults.isEmpty
               ? Center(
                   child: Text(
-                    '조회할 차량번호 4자리나 입주민 성함을 입력해 줘!',
+                    '조회할 차량번호 4자리, 전화번호, 이름을 입력해 줘!',
                     style: TextStyle(color: Colors.grey[500]),
                   ),
                 )
               : SelectionArea(
-                  child: ListView.builder(
+                  child: ListView(
                     padding: const EdgeInsets.all(12),
-                    itemCount: _searchResults.length,
-                    itemBuilder: (context, i) =>
-                        _buildCarCard(_searchResults[i]),
+                    children: [
+                      if (carnoMatches.isNotEmpty) ...[
+                        _buildSectionHeader(
+                          '🚗 차량번호 일치 (${carnoMatches.length}대)',
+                        ),
+                        ...carnoMatches.map((item) => _buildCarCard(item)),
+                      ],
+                      if (phoneMatches.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _buildSectionHeader(
+                          '📱 전화번호 일치 (${phoneMatches.length}대)',
+                        ),
+                        ...phoneMatches.map((item) => _buildCarCard(item)),
+                      ],
+                      if (otherMatches.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _buildSectionHeader(
+                          '👤 기타(성함/동호수) 일치 (${otherMatches.length}대)',
+                        ),
+                        ...otherMatches.map((item) => _buildCarCard(item)),
+                      ],
+                    ],
                   ),
                 ),
         ),
@@ -318,7 +361,6 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
     final lastTime = item['last_time'] ?? '-';
     final resDate = item['res_date'] ?? '';
 
-    // 백엔드에서 전달되는 다건 입출차 히스토리 목록 (없으면 빈 리스트)
     final List<dynamic> history = item['history'] ?? [];
 
     Color badgeColor = const Color(0xFFFFA000);
@@ -337,7 +379,6 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
         ),
       ),
       child: Theme(
-        // ExpansionTile 기본 선 제거
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -548,7 +589,7 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  '📊 상세 입출차 로그 (최근 내역)',
+                  '📊 상세 입출차 로그 (전체 내역)',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -581,7 +622,7 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
                 child: ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: history.length > 5 ? 5 : history.length,
+                  itemCount: history.length, // 제한 없이 전부 출력
                   separatorBuilder: (context, index) =>
                       const Divider(color: Colors.white10, height: 1),
                   itemBuilder: (context, hIndex) {
@@ -637,6 +678,11 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
     );
   }
 }
+
+
+
+
+
 
 // import 'package:flutter/material.dart';
 // import 'package:flutter/services.dart';
@@ -698,7 +744,7 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
 //     _fetchReservedCars();
 //   }
 
-//   // 1. 차량 / 이름 통합 검색
+//   // 1. 차량 / 이름 / 전화번호 통합 검색
 //   Future<void> _searchCars(String query) async {
 //     final keyword = query.trim();
 //     if (keyword.isEmpty) return;
@@ -820,7 +866,25 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
 //     );
 //   }
 
+//   Widget _buildSectionHeader(String title) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+//       child: Text(
+//         title,
+//         style: const TextStyle(
+//           color: Color(0xFF00E676),
+//           fontSize: 14,
+//           fontWeight: FontWeight.bold,
+//         ),
+//       ),
+//     );
+//   }
+
 //   Widget _buildSearchTab() {
+//     final carnoMatches = _searchResults.where((e) => e['match_type'] == 'carno').toList();
+//     final phoneMatches = _searchResults.where((e) => e['match_type'] == 'phone').toList();
+//     final otherMatches = _searchResults.where((e) => e['match_type'] != 'carno' && e['match_type'] != 'phone').toList();
+
 //     return Column(
 //       children: [
 //         Container(
@@ -832,7 +896,7 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
 //                 child: TextField(
 //                   controller: _searchController,
 //                   decoration: InputDecoration(
-//                     hintText: '차량 4자리(예: 0572) 또는 이름(예: 강효영)',
+//                     hintText: '차량 4자리, 전화번호 뒷자리, 입주민 성함',
 //                     hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
 //                     prefixIcon: const Icon(
 //                       Icons.search,
@@ -880,17 +944,33 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
 //                   child: CircularProgressIndicator(color: Color(0xFF00E676)),
 //                 )
 //               : _searchResults.isEmpty
-//               ? Center(
-//                   child: Text(
-//                     '조회할 차량번호 4자리나 입주민 성함을 입력해 줘!',
-//                     style: TextStyle(color: Colors.grey[500]),
-//                   ),
-//                 )
-//               : ListView.builder(
-//                   padding: const EdgeInsets.all(12),
-//                   itemCount: _searchResults.length,
-//                   itemBuilder: (context, i) => _buildCarCard(_searchResults[i]),
-//                 ),
+//                   ? Center(
+//                       child: Text(
+//                         '조회할 차량번호 4자리, 전화번호, 이름을 입력해 줘!',
+//                         style: TextStyle(color: Colors.grey[500]),
+//                       ),
+//                     )
+//                   : SelectionArea(
+//                       child: ListView(
+//                         padding: const EdgeInsets.all(12),
+//                         children: [
+//                           if (carnoMatches.isNotEmpty) ...[
+//                             _buildSectionHeader('🚗 차량번호 일치 (${carnoMatches.length}대)'),
+//                             ...carnoMatches.map((item) => _buildCarCard(item)),
+//                           ],
+//                           if (phoneMatches.isNotEmpty) ...[
+//                             const SizedBox(height: 10),
+//                             _buildSectionHeader('📱 전화번호 일치 (${phoneMatches.length}대)'),
+//                             ...phoneMatches.map((item) => _buildCarCard(item)),
+//                           ],
+//                           if (otherMatches.isNotEmpty) ...[
+//                             const SizedBox(height: 10),
+//                             _buildSectionHeader('👤 기타(성함/동호수) 일치 (${otherMatches.length}대)'),
+//                             ...otherMatches.map((item) => _buildCarCard(item)),
+//                           ],
+//                         ],
+//                       ),
+//                     ),
 //         ),
 //       ],
 //     );
@@ -928,30 +1008,34 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
 //       );
 //     }
 
-//     return RefreshIndicator(
-//       color: const Color(0xFF00E676),
-//       onRefresh: _fetchReservedCars,
-//       child: ListView.builder(
-//         padding: const EdgeInsets.all(12),
-//         itemCount: _reservedResults.length,
-//         itemBuilder: (context, i) =>
-//             _buildCarCard(_reservedResults[i], isReservation: true),
+//     return SelectionArea(
+//       child: RefreshIndicator(
+//         color: const Color(0xFF00E676),
+//         onRefresh: _fetchReservedCars,
+//         child: ListView.builder(
+//           padding: const EdgeInsets.all(12),
+//           itemCount: _reservedResults.length,
+//           itemBuilder: (context, i) =>
+//               _buildCarCard(_reservedResults[i], isReservation: true),
+//         ),
 //       ),
 //     );
 //   }
 
 //   Widget _buildCarCard(dynamic item, {bool isReservation = false}) {
-//     final carno = item['carno'] ?? '-';
-//     final name = item['name'] ?? '-';
-//     final dongHo = item['dong_ho'] ?? '-';
+//     final carno = (item['carno'] ?? '-').toString();
+//     final name = (item['name'] ?? '-').toString();
+//     final dongHo = (item['dong_ho'] ?? '-').toString();
 //     final phone = (item['phone'] ?? '').toString().trim();
-//     final status = item['parking_status'] ?? '-';
-//     final isParking = status.toString().contains('주차 중');
-//     final isExit = status.toString().contains('출차');
+//     final status = (item['parking_status'] ?? '-').toString();
+//     final isParking = status.contains('주차 중');
+//     final isExit = status.contains('출차');
 
 //     final lastEvent = item['last_event'] ?? '-';
 //     final lastTime = item['last_time'] ?? '-';
 //     final resDate = item['res_date'] ?? '';
+
+//     final List<dynamic> history = item['history'] ?? [];
 
 //     Color badgeColor = const Color(0xFFFFA000);
 //     if (isParking) badgeColor = const Color(0xFF00E676);
@@ -968,187 +1052,277 @@ class _ParkingControlScreenState extends State<ParkingControlScreen>
 //               : Colors.white10,
 //         ),
 //       ),
-//       child: Padding(
-//         padding: const EdgeInsets.all(14),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             // 차량번호 및 상태 라벨
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//               children: [
-//                 Row(
-//                   children: [
-//                     Text(
-//                       carno,
-//                       style: const TextStyle(
-//                         fontSize: 18,
-//                         fontWeight: FontWeight.bold,
-//                         color: Colors.white,
+//       child: Theme(
+//         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+//         child: ExpansionTile(
+//           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+//           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+//           title: Row(
+//             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//             children: [
+//               Row(
+//                 children: [
+//                   Text(
+//                     carno,
+//                     style: const TextStyle(
+//                       fontSize: 18,
+//                       fontWeight: FontWeight.bold,
+//                       color: Colors.white,
+//                     ),
+//                   ),
+//                   const SizedBox(width: 6),
+//                   IconButton(
+//                     icon: const Icon(Icons.search, size: 16, color: Colors.grey),
+//                     tooltip: '이 차량번호로 재검색',
+//                     padding: EdgeInsets.zero,
+//                     constraints: const BoxConstraints(),
+//                     onPressed: () {
+//                       _searchController.text = carno;
+//                       _searchCars(carno);
+//                     },
+//                   ),
+//                   if (isReservation) ...[
+//                     const SizedBox(width: 8),
+//                     Container(
+//                       padding: const EdgeInsets.symmetric(
+//                         horizontal: 6,
+//                         vertical: 2,
+//                       ),
+//                       decoration: BoxDecoration(
+//                         color: Colors.blue.withValues(alpha: 0.2),
+//                         borderRadius: BorderRadius.circular(4),
+//                         border: Border.all(
+//                           color: Colors.blue.withValues(alpha: 0.5),
+//                         ),
+//                       ),
+//                       child: const Text(
+//                         '사전예약',
+//                         style: TextStyle(
+//                           fontSize: 11,
+//                           color: Colors.blueAccent,
+//                         ),
 //                       ),
 //                     ),
-//                     if (isReservation) ...[
-//                       const SizedBox(width: 8),
-//                       Container(
-//                         padding: const EdgeInsets.symmetric(
-//                           horizontal: 6,
-//                           vertical: 2,
-//                         ),
-//                         decoration: BoxDecoration(
-//                           color: Colors.blue.withValues(alpha: 0.2),
-//                           borderRadius: BorderRadius.circular(4),
-//                           border: Border.all(
-//                             color: Colors.blue.withValues(alpha: 0.5),
-//                           ),
-//                         ),
-//                         child: const Text(
-//                           '사전예약',
-//                           style: TextStyle(
-//                             fontSize: 11,
-//                             color: Colors.blueAccent,
-//                           ),
+//                   ],
+//                 ],
+//               ),
+//               Container(
+//                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+//                 decoration: BoxDecoration(
+//                   color: badgeColor.withValues(alpha: 0.15),
+//                   borderRadius: BorderRadius.circular(6),
+//                   border: Border.all(
+//                     color: badgeColor.withValues(alpha: 0.4),
+//                   ),
+//                 ),
+//                 child: Text(
+//                   status,
+//                   style: TextStyle(
+//                     color: badgeColor,
+//                     fontSize: 12,
+//                     fontWeight: FontWeight.bold,
+//                   ),
+//                 ),
+//               ),
+//             ],
+//           ),
+//           subtitle: Column(
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               const SizedBox(height: 8),
+//               Wrap(
+//                 crossAxisAlignment: WrapCrossAlignment.center,
+//                 spacing: 12,
+//                 runSpacing: 8,
+//                 children: [
+//                   Row(
+//                     mainAxisSize: MainAxisSize.min,
+//                     children: [
+//                       const Icon(Icons.home, size: 14, color: Colors.grey),
+//                       const SizedBox(width: 4),
+//                       Text(
+//                         dongHo,
+//                         style: const TextStyle(
+//                           fontSize: 14,
+//                           color: Colors.white70,
+//                           fontWeight: FontWeight.w600,
 //                         ),
 //                       ),
 //                     ],
-//                   ],
-//                 ),
-//                 Container(
-//                   padding: const EdgeInsets.symmetric(
-//                     horizontal: 8,
-//                     vertical: 4,
 //                   ),
-//                   decoration: BoxDecoration(
-//                     color: badgeColor.withValues(alpha: 0.15),
-//                     borderRadius: BorderRadius.circular(6),
-//                     border: Border.all(
-//                       color: badgeColor.withValues(alpha: 0.4),
-//                     ),
-//                   ),
-//                   child: Text(
-//                     status,
-//                     style: TextStyle(
-//                       color: badgeColor,
-//                       fontSize: 12,
-//                       fontWeight: FontWeight.bold,
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//             const SizedBox(height: 10),
-
-//             // 동호수 & 이름 & 원터치 전화번호 복사 칩
-//             Wrap(
-//               crossAxisAlignment: WrapCrossAlignment.center,
-//               spacing: 12,
-//               runSpacing: 8,
-//               children: [
-//                 Row(
-//                   mainAxisSize: MainAxisSize.min,
-//                   children: [
-//                     const Icon(Icons.home, size: 14, color: Colors.grey),
-//                     const SizedBox(width: 4),
-//                     Text(
-//                       dongHo,
-//                       style: const TextStyle(
-//                         fontSize: 14,
-//                         color: Colors.white70,
-//                         fontWeight: FontWeight.w600,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//                 Row(
-//                   mainAxisSize: MainAxisSize.min,
-//                   children: [
-//                     const Icon(Icons.person, size: 14, color: Colors.grey),
-//                     const SizedBox(width: 4),
-//                     Text(
-//                       name,
-//                       style: const TextStyle(
-//                         fontSize: 13,
-//                         color: Colors.white70,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//                 // 전화번호가 존재할 때 터치 복사 가능한 칩 표시
-//                 if (phone.isNotEmpty && phone != '-')
-//                   Material(
-//                     color: Colors.transparent,
-//                     child: InkWell(
-//                       borderRadius: BorderRadius.circular(6),
-//                       onTap: () {
-//                         Clipboard.setData(ClipboardData(text: phone));
-//                         _showSnackbar('📋 전화번호 복사 완료: $phone');
-//                       },
-//                       child: Container(
-//                         padding: const EdgeInsets.symmetric(
-//                           horizontal: 8,
-//                           vertical: 3,
+//                   Row(
+//                     mainAxisSize: MainAxisSize.min,
+//                     children: [
+//                       const Icon(Icons.person, size: 14, color: Colors.grey),
+//                       const SizedBox(width: 4),
+//                       Text(
+//                         name,
+//                         style: const TextStyle(
+//                           fontSize: 13,
+//                           color: Colors.white70,
 //                         ),
-//                         decoration: BoxDecoration(
-//                           color: const Color(
-//                             0xFF00E676,
-//                           ).withValues(alpha: 0.15),
-//                           borderRadius: BorderRadius.circular(6),
-//                           border: Border.all(
-//                             color: const Color(
-//                               0xFF00E676,
-//                             ).withValues(alpha: 0.4),
+//                       ),
+//                       if (name != '-' && name.isNotEmpty)
+//                         GestureDetector(
+//                           onTap: () {
+//                             _searchController.text = name;
+//                             _searchCars(name);
+//                           },
+//                           child: const Padding(
+//                             padding: EdgeInsets.only(left: 4),
+//                             child: Icon(Icons.open_in_new, size: 13, color: Colors.grey),
 //                           ),
 //                         ),
-//                         child: Row(
-//                           mainAxisSize: MainAxisSize.min,
-//                           children: [
-//                             const Icon(
-//                               Icons.phone_android,
-//                               size: 13,
-//                               color: Color(0xFF00E676),
+//                     ],
+//                   ),
+//                   if (phone.isNotEmpty && phone != '-')
+//                     Material(
+//                       color: Colors.transparent,
+//                       child: InkWell(
+//                         borderRadius: BorderRadius.circular(6),
+//                         onTap: () {
+//                           Clipboard.setData(ClipboardData(text: phone));
+//                           _showSnackbar('📋 전화번호 복사 완료: $phone');
+//                         },
+//                         child: Container(
+//                           padding: const EdgeInsets.symmetric(
+//                             horizontal: 8,
+//                             vertical: 3,
+//                           ),
+//                           decoration: BoxDecoration(
+//                             color: const Color(0xFF00E676).withValues(alpha: 0.15),
+//                             borderRadius: BorderRadius.circular(6),
+//                             border: Border.all(
+//                               color: const Color(0xFF00E676).withValues(alpha: 0.4),
 //                             ),
-//                             const SizedBox(width: 4),
-//                             Text(
-//                               phone,
-//                               style: const TextStyle(
-//                                 fontSize: 13,
+//                           ),
+//                           child: Row(
+//                             mainAxisSize: MainAxisSize.min,
+//                             children: [
+//                               const Icon(
+//                                 Icons.phone_android,
+//                                 size: 13,
 //                                 color: Color(0xFF00E676),
-//                                 fontWeight: FontWeight.bold,
 //                               ),
-//                             ),
-//                             const SizedBox(width: 5),
-//                             const Icon(
-//                               Icons.copy,
-//                               size: 12,
-//                               color: Colors.white70,
-//                             ),
-//                           ],
+//                               const SizedBox(width: 4),
+//                               Text(
+//                                 phone,
+//                                 style: const TextStyle(
+//                                   fontSize: 13,
+//                                   color: Color(0xFF00E676),
+//                                   fontWeight: FontWeight.bold,
+//                                 ),
+//                               ),
+//                               const SizedBox(width: 5),
+//                               const Icon(
+//                                 Icons.copy,
+//                                 size: 12,
+//                                 color: Colors.white70,
+//                               ),
+//                             ],
+//                           ),
 //                         ),
 //                       ),
 //                     ),
+//                 ],
+//               ),
+//               const SizedBox(height: 10),
+//               Row(
+//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                 children: [
+//                   Expanded(
+//                     child: Text(
+//                       isReservation && lastEvent == '-'
+//                           ? '예약일자: $resDate'
+//                           : '최근통과: $lastEvent',
+//                       style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+//                       overflow: TextOverflow.ellipsis,
+//                     ),
 //                   ),
-//               ],
-//             ),
-//             const Divider(color: Colors.white10, height: 18),
-
-//             // 입출차/예약 상세 시간 정보
+//                   Text(
+//                     lastTime != '-' ? lastTime : '',
+//                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+//                   ),
+//                 ],
+//               ),
+//             ],
+//           ),
+//           children: [
+//             const Divider(color: Colors.white24, height: 16),
 //             Row(
 //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
 //               children: [
-//                 Expanded(
-//                   child: Text(
-//                     isReservation && lastEvent == '-'
-//                         ? '예약일자: $resDate'
-//                         : '최근통과: $lastEvent',
-//                     style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-//                     overflow: TextOverflow.ellipsis,
-//                   ),
+//                 const Text(
+//                   '📊 상세 입출차 로그 (전체 내역)',
+//                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF00E676)),
 //                 ),
 //                 Text(
-//                   lastTime != '-' ? lastTime : '',
-//                   style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+//                   history.isNotEmpty ? '${history.length}건 기록됨' : '상세 로그 없음',
+//                   style: const TextStyle(fontSize: 11, color: Colors.grey),
 //                 ),
 //               ],
 //             ),
+//             const SizedBox(height: 8),
+//             if (history.isEmpty)
+//               Padding(
+//                 padding: const EdgeInsets.symmetric(vertical: 8),
+//                 child: Text(
+//                   lastTime != '-'
+//                       ? '최근 1건: $lastTime ($lastEvent)'
+//                       : '보유한 입출차 내역이 없습니다.',
+//                   style: const TextStyle(fontSize: 12, color: Colors.white60),
+//                 ),
+//               )
+//             else
+//               Container(
+//                 decoration: BoxDecoration(
+//                   color: const Color(0xFF141414),
+//                   borderRadius: BorderRadius.circular(8),
+//                 ),
+//                 child: ListView.separated(
+//                   shrinkWrap: true,
+//                   physics: const NeverScrollableScrollPhysics(),
+//                   itemCount: history.length, // 제한 없이 전부 출력
+//                   separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+//                   itemBuilder: (context, hIndex) {
+//                     final h = history[hIndex];
+//                     final hType = h['io_type'] ?? '-';
+//                     final hTime = h['time'] ?? '-';
+//                     final hGate = h['gate'] ?? '-';
+//                     final isHIn = hType.toString().contains('입차');
+
+//                     return Padding(
+//                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+//                       child: Row(
+//                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                         children: [
+//                           Row(
+//                             children: [
+//                               Icon(
+//                                 isHIn ? Icons.login : Icons.logout,
+//                                 size: 14,
+//                                 color: isHIn ? const Color(0xFF00E676) : Colors.grey,
+//                               ),
+//                               const SizedBox(width: 6),
+//                               Text(
+//                                 '$hType ($hGate)',
+//                                 style: TextStyle(
+//                                   fontSize: 12,
+//                                   color: isHIn ? Colors.white : Colors.white70,
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                           Text(
+//                             hTime,
+//                             style: const TextStyle(fontSize: 11, color: Colors.grey),
+//                           ),
+//                         ],
+//                       ),
+//                     );
+//                   },
+//                 ),
+//               ),
 //           ],
 //         ),
 //       ),
